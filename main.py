@@ -21,7 +21,7 @@ logger = logging.getLogger('discord_bot')
 
 # Set up Google Gemini API
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Set up Discord bot
 intents = discord.Intents.default()
