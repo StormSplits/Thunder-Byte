@@ -1,6 +1,0 @@
-discord.py>=2.0.0
-google-generativeai>=0.2.0
-textblob>=0.17.1
-python-dotenv>=0.21.0
-nltk>=3.7
-Flask>=2.0.0
