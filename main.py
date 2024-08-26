@@ -96,17 +96,21 @@ async def on_ready():
 
 # Command error handler
 @bot.tree.error
-async def on_app_command_error(interaction: discord.Interaction,
-                               error: app_commands.AppCommandError):
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.CommandOnCooldown):
         await interaction.response.send_message(
             f"This command is on cooldown. Try again in {error.retry_after:.2f} seconds.",
             ephemeral=True)
     else:
         logger.error(f"Command error: {error}")
-        await interaction.response.send_message(
-            "An error occurred while processing your command. Please try again later.",
-            ephemeral=True)
+        if interaction.response.is_done():
+            await interaction.followup.send(
+                "An error occurred while processing your command. Please try again later.",
+                ephemeral=True)
+        else:
+            await interaction.response.send_message(
+                "An error occurred while processing your command. Please try again later.",
+                ephemeral=True)
 
 
 # About command
@@ -125,81 +129,77 @@ async def about(interaction: discord.Interaction):
 @bot.tree.command(name="science", description="Answer a science question")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def science(interaction: discord.Interaction, question: str):
-    prompt = f"Answer this science question with the divine clarity and wisdom of Shree Krishna: {question}"
+    await interaction.response.defer()
+    prompt = f"Answer this science question: {question}"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
-        await interaction.response.defer()
-        await interaction.followup.send(response[:2000])
-        await interaction.followup.send(response[2000:])
+        for i in range(0, len(response), 2000):
+            await interaction.followup.send(response[i:i+2000])
     else:
-        await interaction.response.send_message(response)
+        await interaction.followup.send(response)
 
 
 # Math command
 @bot.tree.command(name="math", description="Solve a math problem")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def math(interaction: discord.Interaction, problem: str):
-    prompt = f"Solve this math problem and explain the solution with divine wisdom: {problem}"
+    await interaction.response.defer()
+    prompt = f"Solve this math problem and explain the solution: {problem}"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
-        await interaction.response.defer()
-        await interaction.followup.send(response[:2000])
-        await interaction.followup.send(response[2000:])
+        for i in range(0, len(response), 2000):
+            await interaction.followup.send(response[i:i+2000])
     else:
-        await interaction.response.send_message(response)
+        await interaction.followup.send(response)
 
 
 # Mythology command
-@bot.tree.command(name="mythology",
-                  description="Provide information about a mythology topic")
+@bot.tree.command(name="mythology", description="Provide information about a mythology topic")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def mythology(interaction: discord.Interaction, topic: str):
+    await interaction.response.defer()
     prompt = f"Provide information about this mythology topic with the insight and serenity of Shree Krishna: {topic}"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
-        await interaction.response.defer()
-        await interaction.followup.send(response[:2000])
-        await interaction.followup.send(response[2000:])
+        for i in range(0, len(response), 2000):
+            await interaction.followup.send(response[i:i+2000])
     else:
-        await interaction.response.send_message(response)
+        await interaction.followup.send(response)
 
 
 # Joke command
 @bot.tree.command(name="joke", description="Tell a joke")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def joke(interaction: discord.Interaction, topic: str = None):
+    await interaction.response.defer()
     if topic:
         prompt = f"Tell a funny joke about {topic}"
     else:
         prompt = "Tell a random funny joke"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
-        await interaction.response.defer()
-        await interaction.followup.send(response[:2000])
-        await interaction.followup.send(response[2000:])
+        for i in range(0, len(response), 2000):
+            await interaction.followup.send(response[i:i+2000])
     else:
-        await interaction.response.send_message(response)
+        await interaction.followup.send(response)
 
 
 # Story command
 @bot.tree.command(name="story", description="Tell a short story")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def story(interaction: discord.Interaction, theme: str = None):
+    await interaction.response.defer()
     if theme:
         prompt = f"Tell a short story about {theme}"
     else:
         genres = ["sci-fi", "fantasy", "mystery", "romance", "adventure"]
         prompt = f"Tell a short {random.choice(genres)} story"
 
-    # Acknowledge the interaction with a deferred response
-    await interaction.response.defer()
-
     response = await generate_response(prompt, interaction.user.display_name)
 
-    # Split and send long responses
     if len(response) > 2000:
         for i in range(0, len(response), 2000):
-            await interaction.followup.send(response[i:i + 2000])
+            await interaction.followup.send(response[i:i+2000])
     else:
         await interaction.followup.send(response)
 
@@ -242,21 +242,19 @@ async def advice(interaction: discord.Interaction, topic: str):
 @bot.tree.command(name="ask", description="Ask me anything")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def ask(interaction: discord.Interaction, question: str):
+    await interaction.response.defer()
     # Filter vulgarity or inappropriate content
-    if any(vulgar_word in question.lower()
-           for vulgar_word in ["vulgarity", "inappropriate"]):
-        await interaction.response.send_message(
-            "Sorry, I can't answer that question.", ephemeral=True)
+    if any(vulgar_word in question.lower() for vulgar_word in ["vulgarity", "inappropriate"]):
+        await interaction.followup.send("Sorry, I can't answer that question.", ephemeral=True)
         return
 
     prompt = f"Answer this question with the divine wisdom and grace of Shree Krishna: {question}"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
-        await interaction.response.defer()
-        await interaction.followup.send(response[:2000])
-        await interaction.followup.send(response[2000:])
+        for i in range(0, len(response), 2000):
+            await interaction.followup.send(response[i:i+2000])
     else:
-        await interaction.response.send_message(response)
+        await interaction.followup.send(response)
 
 
 # Respond to mentions and engage in small talk
