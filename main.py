@@ -211,6 +211,9 @@ async def advice(interaction: discord.Interaction, topic: str):
     try:
         logger.info(f"Advice command called with topic: {topic}")
         
+        # Defer the response immediately
+        await interaction.response.defer()
+        
         prompt = f"""Provide life advice on topic mentioned below with the divine wisdom and compassion of Shree Krishna. 
         Include insights from the Bhagavad Gita and relevant parables to illuminate the advice. Also, include a relevant quote from a Disney or Dreamworks movie to support the advice.:
         {topic}"""
@@ -221,17 +224,16 @@ async def advice(interaction: discord.Interaction, topic: str):
 
         if len(response) > 2000:
             logger.info("Response longer than 2000 characters. Splitting...")
-            await interaction.response.defer()
             for i in range(0, len(response), 2000):
                 await interaction.followup.send(response[i:i + 2000])
                 logger.info(f"Sent chunk of response. Length: {len(response[i:i + 2000])}")
         else:
-            await interaction.response.send_message(response)
+            await interaction.followup.send(response)
             logger.info("Sent full response")
 
     except Exception as e:
         logger.error(f"Error in advice command: {e}", exc_info=True)
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "An error occurred while processing your request. Please try again later.",
             ephemeral=True)
 
