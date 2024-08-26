@@ -208,22 +208,29 @@ async def story(interaction: discord.Interaction, theme: str = None):
 @bot.tree.command(name="advice", description="Get life advice on a topic")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def advice(interaction: discord.Interaction, topic: str):
-    prompt = f"""Provide life advice on topic mentioned below with the divine wisdom and compassion of Shree Krishna. 
-    Include insights from the Bhagavad Gita and relevant parables to illuminate the advice. Also, include a relevant quote from a Disney or Dreamworks movie to support the advice.:
-    {topic}"""
-
     try:
+        logger.info(f"Advice command called with topic: {topic}")
+        
+        prompt = f"""Provide life advice on topic mentioned below with the divine wisdom and compassion of Shree Krishna. 
+        Include insights from the Bhagavad Gita and relevant parables to illuminate the advice. Also, include a relevant quote from a Disney or Dreamworks movie to support the advice.:
+        {topic}"""
+
+        logger.info("Generating response...")
         response = await generate_response(prompt, interaction.user.display_name)
+        logger.info(f"Response generated. Length: {len(response)}")
+
         if len(response) > 2000:
-            # Defer response
+            logger.info("Response longer than 2000 characters. Splitting...")
             await interaction.response.defer()
-            # Send response in chunks
             for i in range(0, len(response), 2000):
                 await interaction.followup.send(response[i:i + 2000])
+                logger.info(f"Sent chunk of response. Length: {len(response[i:i + 2000])}")
         else:
             await interaction.response.send_message(response)
+            logger.info("Sent full response")
+
     except Exception as e:
-        logger.error(f"Error in advice command: {e}")
+        logger.error(f"Error in advice command: {e}", exc_info=True)
         await interaction.response.send_message(
             "An error occurred while processing your request. Please try again later.",
             ephemeral=True)
