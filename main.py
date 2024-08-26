@@ -2,9 +2,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import google.generativeai as genai
+from textblob import TextBlob
 import asyncio
 import os
 import logging
+from datetime import datetime, timedelta
+import random
 from dotenv import load_dotenv
 import re
 import webserver
@@ -56,32 +59,30 @@ getting_started = """
 Remember, I'm always here to help, rain or shine! ⚡🚀
 """
 
+
 # Helper function to generate bot introduction
 def generate_bot_intro():
     intro = random.choice(bot_intros)
-    features = "\n".join(random.sample(bot_features, 4))  # Randomly select 4 features
+    features = "\n".join(random.sample(bot_features,
+                                       4))  # Randomly select 4 features
     return f"{intro}\n\n⚡ **What I Can Do:**\n{features}\n\n{getting_started}"
 
-# Helper function to replace bot name with user's name in the response
+
+# Helper function to generate response using Gemini API
 def replace_bot_name_with_user(response_text, user_name):
     bot_name = bot.user.name
     return response_text.replace(bot_name, user_name)
 
-# Helper function to generate response using Gemini API
+
 async def generate_response(prompt, user_name):
     try:
-        divine_tone = """
-        Imagine Shree Krishna, the embodiment of divine wisdom and compassion, guiding with serene clarity. 
-        Each word flows like a river of timeless knowledge, carrying a depth of understanding and a touch of divine grace. 
-        Respond with the warmth and wisdom of the divine, as if speaking from the eternal truth of the universe.
-        """
-        full_prompt = f"{divine_tone}\n\n{prompt}"
-        response = await asyncio.to_thread(model.generate_content, full_prompt)
+        response = await asyncio.to_thread(model.generate_content, prompt)
         final_response = replace_bot_name_with_user(response.text, user_name)
         return final_response
     except Exception as e:
         logger.error(f"Error generating response: {e}")
-        return "The divine energies are momentarily obscured. Please try again later."
+        return "I'm having trouble coming up with a response right now. Try again later!"
+
 
 @bot.event
 async def on_ready():
@@ -92,9 +93,11 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+
 # Command error handler
 @bot.tree.error
-async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+async def on_app_command_error(interaction: discord.Interaction,
+                               error: app_commands.AppCommandError):
     if isinstance(error, app_commands.CommandOnCooldown):
         await interaction.response.send_message(
             f"This command is on cooldown. Try again in {error.retry_after:.2f} seconds.",
@@ -104,6 +107,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
         await interaction.response.send_message(
             "An error occurred while processing your command. Please try again later.",
             ephemeral=True)
+
 
 # About command
 @bot.tree.command(name="about", description="Learn about Thunder Byte")
@@ -115,6 +119,7 @@ async def about(interaction: discord.Interaction):
         await interaction.followup.send(response[2000:])
     else:
         await interaction.response.send_message(response)
+
 
 # Science command
 @bot.tree.command(name="science", description="Answer a science question")
@@ -129,6 +134,7 @@ async def science(interaction: discord.Interaction, question: str):
     else:
         await interaction.response.send_message(response)
 
+
 # Math command
 @bot.tree.command(name="math", description="Solve a math problem")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
@@ -142,8 +148,10 @@ async def math(interaction: discord.Interaction, problem: str):
     else:
         await interaction.response.send_message(response)
 
+
 # Mythology command
-@bot.tree.command(name="mythology", description="Provide information about a mythology topic")
+@bot.tree.command(name="mythology",
+                  description="Provide information about a mythology topic")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def mythology(interaction: discord.Interaction, topic: str):
     prompt = f"Provide information about this mythology topic with the insight and serenity of Shree Krishna: {topic}"
@@ -155,14 +163,15 @@ async def mythology(interaction: discord.Interaction, topic: str):
     else:
         await interaction.response.send_message(response)
 
+
 # Joke command
 @bot.tree.command(name="joke", description="Tell a joke")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def joke(interaction: discord.Interaction, topic: str = None):
     if topic:
-        prompt = f"Tell a joke about {topic} with a divine sense of humor and charm"
+        prompt = f"Tell a funny joke about {topic}"
     else:
-        prompt = "Tell a joke with a divine touch of joy and lightness"
+        prompt = "Tell a random funny joke"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
         await interaction.response.defer()
@@ -171,15 +180,16 @@ async def joke(interaction: discord.Interaction, topic: str = None):
     else:
         await interaction.response.send_message(response)
 
+
 # Story command
 @bot.tree.command(name="story", description="Tell a short story")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def story(interaction: discord.Interaction, theme: str = None):
     if theme:
-        prompt = f"Tell a short story about {theme} with divine insight and guidance"
+        prompt = f"Tell a short story about {theme}"
     else:
         genres = ["sci-fi", "fantasy", "mystery", "romance", "adventure"]
-        prompt = f"Tell a short {random.choice(genres)} story with the grace and wisdom of Shree Krishna"
+        prompt = f"Tell a short {random.choice(genres)} story"
 
     # Acknowledge the interaction with a deferred response
     await interaction.response.defer()
@@ -193,12 +203,14 @@ async def story(interaction: discord.Interaction, theme: str = None):
     else:
         await interaction.followup.send(response)
 
+
 # Advice command without memory
 @bot.tree.command(name="advice", description="Get life advice on a topic")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def advice(interaction: discord.Interaction, topic: str):
-    prompt = f"""Provide life advice on '{topic}' with the divine wisdom and compassion of Shree Krishna. 
-    Include insights from the Bhagavad Gita and relevant parables to illuminate the advice. Also, include a relevant quote from a Disney or Dreamworks movie to support the advice."""
+    prompt = f"""Provide life advice on topic mentioned below with the divine wisdom and compassion of Shree Krishna. 
+    Include insights from the Bhagavad Gita and relevant parables to illuminate the advice. Also, include a relevant quote from a Disney or Dreamworks movie to support the advice.:
+    {topic}"""
 
     try:
         response = await generate_response(prompt, interaction.user.display_name)
@@ -216,12 +228,14 @@ async def advice(interaction: discord.Interaction, topic: str):
             "An error occurred while processing your request. Please try again later.",
             ephemeral=True)
 
+
 # Ask Me Anything command
 @bot.tree.command(name="ask", description="Ask me anything")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def ask(interaction: discord.Interaction, question: str):
     # Filter vulgarity or inappropriate content
-    if any(vulgar_word in question.lower() for vulgar_word in ["vulgarity", "inappropriate"]):
+    if any(vulgar_word in question.lower()
+           for vulgar_word in ["vulgarity", "inappropriate"]):
         await interaction.response.send_message(
             "Sorry, I can't answer that question.", ephemeral=True)
         return
@@ -234,6 +248,7 @@ async def ask(interaction: discord.Interaction, question: str):
         await interaction.followup.send(response[2000:])
     else:
         await interaction.response.send_message(response)
+
 
 # Respond to mentions and engage in small talk
 @bot.event
@@ -250,7 +265,8 @@ async def on_message(message):
         bot_mention_pattern = re.escape(f"<@{bot.user.id}>")
         cleaned_content = re.sub(bot_mention_pattern, '', content).strip()
 
-        if any(phrase in cleaned_content.lower() for phrase in ["who are you", "what can you do", "tell me about yourself"]):
+        if any(phrase in cleaned_content.lower() for phrase in
+               ["who are you", "what can you do", "tell me about yourself"]):
             response = generate_bot_intro()
             if len(response) > 2000:
                 await message.channel.send(response[:2000])
@@ -259,7 +275,8 @@ async def on_message(message):
                 await message.channel.send(response)
         else:
             if message.reference:
-                original_message = await message.channel.fetch_message(message.reference.message_id)
+                original_message = await message.channel.fetch_message(
+                    message.reference.message_id)
                 question = original_message.content
                 cleaned_question = re.sub(bot_mention_pattern, '', question).strip()
                 response = await generate_response(cleaned_question, user_name)
@@ -267,7 +284,8 @@ async def on_message(message):
                     await message.channel.send(response[:2000])
                     await message.channel.send(response[2000:])
                 else:
-                    await message.channel.send(f"<@{user_id}>! ⚡️\n\n{response}")
+                    await message.channel.send(
+                        f"<@{user_id}>! ⚡️\n\n{response}")
             else:
                 prompt = f"Respond to this message with the divine wisdom and grace of Shree Krishna: {cleaned_content}"
                 response = await generate_response(prompt, user_name)
@@ -275,9 +293,11 @@ async def on_message(message):
                     await message.channel.send(response[:2000])
                     await message.channel.send(response[2000:])
                 else:
-                    await message.channel.send(f"<@{user_id}>! ⚡️\n\n{response}")
+                    await message.channel.send(
+                        f"<@{user_id}>! ⚡️\n\n{response}")
 
     await bot.process_commands(message)
+
 
 # Run the bot
 webserver.keep_alive()
