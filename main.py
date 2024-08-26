@@ -193,31 +193,28 @@ async def story(interaction: discord.Interaction, theme: str = None):
     else:
         await interaction.followup.send(response)
 
-# Advice command with memory
+# Advice command without memory
 @bot.tree.command(name="advice", description="Get life advice on a topic")
 @app_commands.checks.cooldown(1, 5.0, key=lambda i: (i.guild_id, i.user.id))
 async def advice(interaction: discord.Interaction, topic: str):
-    user_id = str(interaction.user.id)
-    if user_id not in user_memory:
-        user_memory[user_id] = {'topics': [], 'tone': 'neutral'}
-
-    user_memory[user_id]['topics'].append(topic)
-    if len(user_memory[user_id]['topics']) > 10:  # Limit to last 10 topics
-        user_memory[user_id]['topics'] = user_memory[user_id]['topics'][-10:]
-    previous_interactions = " ".join(
-        user_memory[user_id]['topics'][-3:])  # Get last 3 topics
-
     prompt = f"""Provide life advice on '{topic}' with the divine wisdom and compassion of Shree Krishna. 
-    Include insights from the Bhagavad Gita and relevant parables to illuminate the advice.
-    Previous interactions: {previous_interactions}"""
+    Include insights from the Bhagavad Gita and relevant parables to illuminate the advice. Also, include a relevant quote from a Disney or Dreamworks movie to support the advice."""
 
-    response = await generate_response(prompt, interaction.user.display_name)
-    if len(response) > 2000:
-        await interaction.response.defer()
-        await interaction.followup.send(response[:2000])
-        await interaction.followup.send(response[2000:])
-    else:
-        await interaction.response.send_message(response)
+    try:
+        response = await generate_response(prompt, interaction.user.display_name)
+        if len(response) > 2000:
+            # Defer response
+            await interaction.response.defer()
+            # Send response in chunks
+            for i in range(0, len(response), 2000):
+                await interaction.followup.send(response[i:i + 2000])
+        else:
+            await interaction.response.send_message(response)
+    except Exception as e:
+        logger.error(f"Error in advice command: {e}")
+        await interaction.response.send_message(
+            "An error occurred while processing your request. Please try again later.",
+            ephemeral=True)
 
 # Ask Me Anything command
 @bot.tree.command(name="ask", description="Ask me anything")
