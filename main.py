@@ -63,8 +63,7 @@ Remember, I'm always here to help, rain or shine! ⚡🚀
 # Helper function to generate bot introduction
 def generate_bot_intro():
     intro = random.choice(bot_intros)
-    features = "\n".join(random.sample(bot_features,
-                                       4))  # Randomly select 4 features
+    features = "\n".join(random.sample(bot_features, 4))  # Randomly select 4 features
     return f"{intro}\n\n⚡ **What I Can Do:**\n{features}\n\n{getting_started}"
 
 
@@ -248,7 +247,7 @@ async def ask(interaction: discord.Interaction, question: str):
         await interaction.followup.send("Sorry, I can't answer that question.", ephemeral=True)
         return
 
-    prompt = f"Answer this question with the divine wisdom and grace of Shree Krishna: {question}"
+    prompt = f"Answer this question with soft and happy tone: {question}"
     response = await generate_response(prompt, interaction.user.display_name)
     if len(response) > 2000:
         for i in range(0, len(response), 2000):
@@ -294,7 +293,7 @@ async def on_message(message):
                     await message.channel.send(
                         f"<@{user_id}>! ⚡️\n\n{response}")
             else:
-                prompt = f"Respond to this message with the divine wisdom and grace of Shree Krishna: {cleaned_content}"
+                prompt = f"Respond to this message with soft and happy tone: {cleaned_content}"
                 response = await generate_response(prompt, user_name)
                 if len(response) > 2000:
                     await message.channel.send(response[:2000])
