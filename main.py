@@ -11,7 +11,7 @@ import random
 from dotenv import load_dotenv
 import re
 import webserver
-import asyncpg  # Add this import
+import asyncpg
 
 # Load environment variables from the config.env file
 load_dotenv('./config.env')
