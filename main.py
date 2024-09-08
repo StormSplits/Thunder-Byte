@@ -292,34 +292,45 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    if message.guild is None and message.author != bot.user:  # Check if it's a DM and not from the bot itself
+    # Handle DMs separately
+    if message.guild is None and message.author != bot.user:
         await message.author.send("Hey there! 🌟 To make the most of our interactions, please join the Galactic Ark server by clicking [here](https://discord.gg/SauNXfapR7). This will unlock all the features and capabilities I have to offer. Can't wait to see you there! 🚀✨")
     else:
-        # Existing on_message logic for server messages
-        if bot.user.mentioned_in(message):
-            content = message.content
-            user_name = message.author.display_name
-            user_id = message.author.id
-
-            # Remove bot mention from the message content
-            bot_mention_pattern = re.escape(f"<@{bot.user.id}>")
-            cleaned_content = re.sub(bot_mention_pattern, '', content).strip()
-
-            if any(phrase in cleaned_content.lower() for phrase in
-                   ["who are you", "what can you do", "tell me about yourself", "what is your name"]):
-                response = generate_bot_intro()
-                if len(response) > 2000:
-                    await message.reply(response[:2000])
-                    await message.reply(response[2000:])
+        # Check if the message is a reply
+        if message.reference:
+            try:
+                original_message = await message.channel.fetch_message(message.reference.message_id)
+                # Determine if the original message was from the bot
+                if original_message.author == bot.user:
+                    # Process the reply based on the original message
+                    cleaned_content = re.sub(bot_mention_pattern, '', original_message.content).strip()
+                    response = await generate_response(cleaned_content, message.author.display_name, message.author.id)
                 else:
-                    await message.reply(response)
-            else:
-                if message.reference:
-                    original_message = await message.channel.fetch_message(
-                        message.reference.message_id)
-                    question = original_message.content
-                    cleaned_question = re.sub(bot_mention_pattern, '', question).strip()
-                    response = await generate_response(cleaned_question, user_name, user_id)
+                    # Handle non-bot replies or regular messages
+                    cleaned_content = re.sub(bot_mention_pattern, '', message.content).strip()
+                    response = await generate_response(cleaned_content, message.author.display_name, message.author.id)
+            except Exception as e:
+                logger.error(f"Error fetching original message: {e}")
+                response = "I encountered an error while processing your message. Please try again later."
+        else:
+            # Handle messages that are not replies
+            if bot.user.mentioned_in(message):
+                content = message.content
+                user_name = message.author.display_name
+                user_id = message.author.id
+
+                # Remove bot mention from the message content
+                bot_mention_pattern = re.escape(f"<@{bot.user.id}>")
+                cleaned_content = re.sub(bot_mention_pattern, '', content).strip()
+
+                if any(phrase in cleaned_content.lower() for phrase in
+                       ["who are you", "what can you do", "tell me about yourself", "what is your name"]):
+                    response = generate_bot_intro()
+                    if len(response) > 2000:
+                        await message.reply(response[:2000])
+                        await message.reply(response[2000:])
+                    else:
+                        await message.reply(response)
                 else:
                     prompt = f"Respond to this message: {cleaned_content}"
                     response = await generate_response(prompt, user_name, user_id)
@@ -330,7 +341,9 @@ async def on_message(message):
                 else:
                     await message.reply(response)
 
+    # Process other commands
     await bot.process_commands(message)
+
 
 
 
