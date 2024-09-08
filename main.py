@@ -80,14 +80,17 @@ async def generate_response(prompt, user_name, user_id):
         # Retrieve user's conversation history
         history = conversation_history.get(user_id, [])
         
-        # Construct the full prompt with conversation history
-        full_prompt = "Previous conversation:\n"
+        # Construct the full prompt with conversation history and context
+        full_prompt = "Previous conversation context:\n"
         for msg in history[-MAX_HISTORY_LENGTH:]:
             if msg['role'] == 'Human':
-                full_prompt += f"Human: {msg['content']}\n"
+                full_prompt += f"User {user_name}: {msg['content']}\n"
             elif msg['role'] == 'Assistant':
-                full_prompt += f"Assistant: {msg['content']}\n"
-        full_prompt += f"\nCurrent prompt: {prompt}\n\nResponse:"
+                full_prompt += f"Assistant (You): {msg['content']}\n"
+        
+        full_prompt += f"\nCurrent context: The user {user_name} has just sent a new message in the conversation.\n"
+        full_prompt += f"User {user_name}'s message: {prompt}\n\n"
+        full_prompt += "Please generate a response to the user's latest message, taking into account the conversation history and context provided above. Respond as the AI assistant:\n"
 
         response = await asyncio.to_thread(model.generate_content, full_prompt)
         final_response = replace_bot_name_with_user(response.text, user_name)
