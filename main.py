@@ -83,13 +83,16 @@ async def generate_response(prompt, user_name, user_id):
         # Construct the full prompt with conversation history
         full_prompt = "Previous conversation:\n"
         for msg in history[-MAX_HISTORY_LENGTH:]:
-            full_prompt += f"{msg['role']}: {msg['content']}\n"
+            if msg['role'] == 'Human':
+                full_prompt += f"Human: {msg['content']}\n"
+            elif msg['role'] == 'Assistant':
+                full_prompt += f"Assistant: {msg['content']}\n"
         full_prompt += f"\nCurrent prompt: {prompt}\n\nResponse:"
 
         response = await asyncio.to_thread(model.generate_content, full_prompt)
         final_response = replace_bot_name_with_user(response.text, user_name)
         
-        # Update conversation history
+        # Update conversation history with the user's message and the bot's response
         history.append({"role": "Human", "content": prompt})
         history.append({"role": "Assistant", "content": final_response})
         conversation_history[user_id] = history[-MAX_HISTORY_LENGTH:]
@@ -98,6 +101,7 @@ async def generate_response(prompt, user_name, user_id):
     except Exception as e:
         logger.error(f"Error generating response: {e}")
         return "I'm having trouble coming up with a response right now. Try again later!"
+
 
 @bot.event
 async def on_ready():
@@ -299,7 +303,7 @@ async def on_message(message):
             cleaned_content = re.sub(bot_mention_pattern, '', content).strip()
 
             if any(phrase in cleaned_content.lower() for phrase in
-                   ["who are you", "what can you do", "tell me about yourself"]):
+                   ["who are you", "what can you do", "tell me about yourself", "what is your name"]):
                 response = generate_bot_intro()
                 if len(response) > 2000:
                     await message.reply(response[:2000])
@@ -321,9 +325,10 @@ async def on_message(message):
                     await message.reply(response[:2000])
                     await message.reply(response[2000:])
                 else:
-                    await message.reply(f"{response}")
+                    await message.reply(response)
 
     await bot.process_commands(message)
+
 
 
 
