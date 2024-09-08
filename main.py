@@ -281,6 +281,10 @@ async def ask(interaction: discord.Interaction, question: str):
 # Respond to mentions and engage in small talk
 @bot.event
 async def on_message(message):
+    # Check if the message is from the bot itself
+    if message.author == bot.user:
+        return
+
     if message.guild is None and message.author != bot.user:  # Check if it's a DM and not from the bot itself
         await message.author.send("Hey there! 🌟 To make the most of our interactions, please join the Galactic Ark server by clicking [here](https://discord.gg/SauNXfapR7). This will unlock all the features and capabilities I have to offer. Can't wait to see you there! 🚀✨")
     else:
@@ -321,6 +325,7 @@ async def on_message(message):
                         f"<@{user_id}>! ⚡️\n\n{response}")
 
     await bot.process_commands(message)
+
 
 # Run the bot
 webserver.keep_alive()
