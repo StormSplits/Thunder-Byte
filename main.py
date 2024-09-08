@@ -292,63 +292,61 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Check if the message is a DM and not from the bot itself
-    if message.guild is None and message.author != bot.user:
+    # Handle Direct Messages
+    if message.guild is None and message.author != bot.user:  # Check if it's a DM and not from the bot itself
         await message.author.send("Hey there! 🌟 To make the most of our interactions, please join the Galactic Ark server by clicking [here](https://discord.gg/SauNXfapR7). This will unlock all the features and capabilities I have to offer. Can't wait to see you there! 🚀✨")
-        return
-
-    # Check if the message is a reply
-    if message.reference:
-        # Fetch the original message the user is replying to
-        original_message = await message.channel.fetch_message(message.reference.message_id)
-
-        # Check if the bot is mentioned in the original message
-        if bot.user.mentioned_in(original_message):
-            user_name = message.author.display_name
-            user_id = message.author.id
-
-            # Remove bot mention from the message content
-            bot_mention_pattern = re.escape(f"<@{bot.user.id}>")
-            cleaned_content = re.sub(bot_mention_pattern, '', message.content).strip()
-            
-            # Generate response based on the cleaned content
-            response = await generate_response(cleaned_content, user_name, user_id)
-            
-            # Send the response as a reply to the user's message
-            if len(response) > 2000:
-                await message.reply(response[:2000])
-                await message.reply(response[2000:])
-            else:
-                await message.reply(response)
-            return
-
-    # Check if the bot is mentioned in the message
-    if bot.user.mentioned_in(message):
-        content = message.content
+    else:
+        # Handle messages in server channels
         user_name = message.author.display_name
         user_id = message.author.id
-
-        # Remove bot mention from the message content
+        content = message.content
         bot_mention_pattern = re.escape(f"<@{bot.user.id}>")
         cleaned_content = re.sub(bot_mention_pattern, '', content).strip()
 
-        if any(phrase in cleaned_content.lower() for phrase in
-               ["who are you", "what can you do", "tell me about yourself", "what is your name"]):
-            response = generate_bot_intro()
-            if len(response) > 2000:
-                await message.reply(response[:2000])
-                await message.reply(response[2000:])
+        if bot.user.mentioned_in(message):
+            if any(phrase in cleaned_content.lower() for phrase in
+                   ["who are you", "what can you do", "tell me about yourself", "what is your name"]):
+                response = generate_bot_intro()
+                if len(response) > 2000:
+                    await message.reply(response[:2000])
+                    await message.reply(response[2000:])
+                else:
+                    await message.reply(response)
             else:
-                await message.reply(response)
-        else:
-            prompt = f"Respond to this message: {cleaned_content}"
-            response = await generate_response(prompt, user_name, user_id)
-
-            if len(response) > 2000:
-                await message.reply(response[:2000])
-                await message.reply(response[2000:])
-            else:
-                await message.reply(response)
+                # Handle replies
+                if message.reference:
+                    try:
+                        original_message = await message.channel.fetch_message(message.reference.message_id)
+                        if original_message.author == bot.user:
+                            # If the original message was from the bot, treat the reply as a continuation
+                            prompt = cleaned_content
+                            response = await generate_response(prompt, user_name, user_id)
+                            if len(response) > 2000:
+                                await message.reply(response[:2000])
+                                await message.reply(response[2000:])
+                            else:
+                                await message.reply(response)
+                        else:
+                            # If the original message was not from the bot, handle it as a new message
+                            prompt = f"Respond to this message: {cleaned_content}"
+                            response = await generate_response(prompt, user_name, user_id)
+                            if len(response) > 2000:
+                                await message.reply(response[:2000])
+                                await message.reply(response[2000:])
+                            else:
+                                await message.reply(response)
+                    except Exception as e:
+                        logger.error(f"Error fetching original message: {e}")
+                        await message.reply("I encountered an error while processing your message. Please try again later.")
+                else:
+                    # Handle new messages
+                    prompt = f"Respond to this message: {cleaned_content}"
+                    response = await generate_response(prompt, user_name, user_id)
+                    if len(response) > 2000:
+                        await message.reply(response[:2000])
+                        await message.reply(response[2000:])
+                    else:
+                        await message.reply(response)
 
     await bot.process_commands(message)
 
