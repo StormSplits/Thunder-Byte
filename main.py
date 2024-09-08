@@ -29,31 +29,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Database setup
-DATABASE_URL = os.getenv('DATABASE_URL')
-connection = None
+# User memory
+user_memory = {}
 
-async def setup_database():
-    global connection
-    connection = await asyncpg.connect(DATABASE_URL)
-    await connection.execute("""
-        CREATE TABLE IF NOT EXISTS conversations (
-            user_id BIGINT PRIMARY KEY,
-            messages TEXT[]
-        )
-    """)
-
-async def get_conversation_history(user_id):
-    row = await connection.fetchrow('SELECT messages FROM conversations WHERE user_id = $1', user_id)
-    if row:
-        return row['messages']
-    return []
-
-async def set_conversation_history(user_id, history):
-    await connection.execute('INSERT INTO conversations(user_id, messages) VALUES($1, $2) ON CONFLICT(user_id) DO UPDATE SET messages = EXCLUDED.messages', user_id, history)
-
-async def delete_conversation_history(user_id):
-    await connection.execute('DELETE FROM conversations WHERE user_id = $1', user_id)
+# New: Conversation history
+conversation_history = {}
+MAX_HISTORY_LENGTH = 10
 
 # Bot introduction messages
 bot_intros = [
@@ -96,8 +77,8 @@ def replace_bot_name_with_user(response_text, user_name):
 
 async def generate_response(prompt, user_name, user_id):
     try:
-        # Retrieve user's conversation history from database
-        history = await get_conversation_history(user_id)
+        # Retrieve user's conversation history
+        history = conversation_history.get(user_id, [])
         
         # Construct the full prompt with conversation history
         full_prompt = "Previous conversation:\n"
@@ -108,10 +89,10 @@ async def generate_response(prompt, user_name, user_id):
         response = await asyncio.to_thread(model.generate_content, full_prompt)
         final_response = replace_bot_name_with_user(response.text, user_name)
         
-        # Update conversation history in database
+        # Update conversation history
         history.append({"role": "Human", "content": prompt})
         history.append({"role": "Assistant", "content": final_response})
-        await set_conversation_history(user_id, history[-MAX_HISTORY_LENGTH:])
+        conversation_history[user_id] = history[-MAX_HISTORY_LENGTH:]
         
         return final_response
     except Exception as e:
@@ -121,8 +102,7 @@ async def generate_response(prompt, user_name, user_id):
 @bot.event
 async def on_ready():
     logger.info(f'{bot.user} has connected to Discord!')
-    await setup_database()  # Initialize database on startup
-
+    
     # Set the status of the bot
     await bot.change_presence(
         activity=discord.Streaming(
@@ -160,7 +140,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 @bot.tree.command(name="new_conversation", description="Start a new conversation")
 async def new_conversation(interaction: discord.Interaction):
     user_id = interaction.user.id
-    await delete_conversation_history(user_id)  # Clear the user's conversation history from the database
+    conversation_history[user_id] = []
     await interaction.response.send_message("Your conversation history has been reset. Let's start anew!", ephemeral=True)
 
 # About command
@@ -269,7 +249,7 @@ async def advice(interaction: discord.Interaction, topic: str):
             logger.info("Response longer than 2000 characters. Splitting...")
             for i in range(0, len(response), 2000):
                 await interaction.followup.send(response[i:i + 2000])
-                logger.info(f"Sent chunk of response. Length: {len(response[i + 2000])}")
+                logger.info(f"Sent chunk of response. Length: {len(response[i:i + 2000])}")
         else:
             await interaction.followup.send(response)
             logger.info("Sent full response")
